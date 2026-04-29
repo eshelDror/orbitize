@@ -2,6 +2,7 @@ import pytest
 from orbitize import sampler, system
 import numpy as np
 from orbitize.system import generate_synthetic_data
+import multiprocessing as mp
 
 # This is top part of the test is a direct translation of test_nested_sampler.py 
 
@@ -37,7 +38,7 @@ def test_nautilus_general():
     mySys.sys_priors[lab["mtot"]] = mtot
     
     my_sampler = sampler.NautilusSampler(mySys)
-    _ = my_sampler.run_sampler(n_live=1000, n_update=False, verbose=True)
+    _ = my_sampler.run_sampler(n_live=1000, num_threads=mp.cpu_count(), n_update=False, verbose=True)
     print("Finished 1st Run!")
 
     nautilus_eccentricities = my_sampler.results.post[:, lab["ecc1"]]
