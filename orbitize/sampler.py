@@ -1539,7 +1539,7 @@ class NautilusSampler(Sampler):
         try:
             points, _, log_l = self.naut_sampler.posterior(equal_weight = True)
         except ValueError:
-            min_length = min(self.naut_sampler.log_l.shape[0], self.naut_sampler.shell_log_v.shape[0], self.naut_sampler.points.shape[0])
+            min_length = min(len(self.naut_sampler.log_l), len(self.naut_sampler.shell_log_v), len(self.naut_sampler.points.shape))
             self.naut_sampler.log_l = self.naut_sampler.log_l.shape[:min_length]
             self.naut_sampler.shell_log_v = self.naut_sampler.shell_log_v[:min_length]
             self.naut_sampler.points = self.naut_sampler.points[:min_length]
