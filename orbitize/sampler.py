@@ -1536,7 +1536,14 @@ class NautilusSampler(Sampler):
                 verbose=verbose,
                 **run_kwargs
             )
-        points, _, log_l = self.naut_sampler.posterior(equal_weight = True)
+        try:
+            points, _, log_l = self.naut_sampler.posterior(equal_weight = True)
+        except ValueError:
+            min_length = min(self.naut_sampler.log_l.shape[0], self.naut_sampler.shell_log_v.shape[0], self.naut_sampler.points.shape[0])
+            self.naut_sampler.log_l = self.naut_sampler.log_l.shape[:min_length]
+            self.naut_sampler.shell_log_v = self.naut_sampler.shell_log_v[:min_length]
+            self.naut_sampler.points = self.naut_sampler.points[:min_length]
+            points, _, log_l = self.naut_sampler.posterior(equal_weight = True)
         weighted_points, log_w, weighted_log_l = self.naut_sampler.posterior()
 
         self.results.add_samples(
