@@ -9,7 +9,6 @@ import orbitize.basis
 import orbitize.plot
 import orbitize.gaia, orbitize.hipparcos
 
-
 class Results(object):
     """
     A class to store accepted orbital configurations from the sampler
@@ -36,7 +35,7 @@ class Results(object):
 
     def __init__(
         self, system=None, sampler_name=None, post=None, lnlike=None,
-        version_number=None, curr_pos=None
+        version_number=None, curr_pos=None, weighted_post = None, weighted_lnlike = None, lnweight = None
     ):
 
         self.system = system
@@ -45,6 +44,9 @@ class Results(object):
         self.lnlike = lnlike
         self.curr_pos = curr_pos
         self.version_number = version_number
+        self._weighted_post = weighted_post
+        self._weighted_lnlike = weighted_lnlike
+        self.lnweight = lnweight
         self.ln_evidence = None
         self.ln_evidence_err = None
 
@@ -58,7 +60,34 @@ class Results(object):
             self.param_idx = self.system.param_idx
             self.standard_param_idx = self.system.basis.standard_basis_idx
 
-    def add_samples(self, orbital_params, lnlikes, curr_pos=None): 
+    @property
+    def weighted_post(self):
+        if self._weighted_post is not None:
+            return self._weighted_post
+        return self.post
+    
+    @property
+    def weighted_lnlike(self):
+        if self._weighted_lnlike is not None:
+            return self._weighted_lnlike
+        return self.lnlike
+    
+    @property
+    def weights(self):
+        if self.lnweight is None:
+            return None
+        return np.exp(self.lnweight)
+    
+    def downsample(self, amount, duplicates = True):
+        """
+        Samples from the posterior an amount of times. If the posterior
+        is weighted, samples proportionally to weight to get an equal-weighted posterior.
+        """
+
+        indexes = np.random.choice(len(self.weighted_post), amount, duplicates, self.weights)
+        return self.weighted_post[indexes], self.weighted_lnlike[indexes]
+        
+    def add_samples(self, orbital_params, lnlikes, curr_pos=None, weighted_post = None, weighted_lnlike = None, lnweight = None): 
         """
         Add accepted orbits, their likelihoods, and the orbitize version number 
         to the results
@@ -88,6 +117,16 @@ class Results(object):
         else:
             self.post = np.vstack((self.post, orbital_params))
             self.lnlike = np.append(self.lnlike, lnlikes)
+        
+        if weighted_post is not None:
+            if self._weighted_post is None:
+                self._weighted_post = weighted_post
+                self._weighted_lnlike = weighted_lnlike
+                self.lnweight = lnweight
+            else:
+                self._weighted_post = np.vstack((self._weighted_post, weighted_post))
+                self._weighted_lnlike = np.append(self._weighted_lnlike, weighted_lnlike)
+                self.lnweight = np.append(self.lnweight, lnweight)
 
         if curr_pos is not None:
             self.curr_pos = curr_pos
@@ -132,6 +171,12 @@ class Results(object):
         if self.curr_pos is not None:
             hf.create_dataset("curr_pos", data=self.curr_pos)
 
+        if self._weighted_post is not None and self._weighted_lnlike is not None and self.lnweight is not None:
+            hf.create_dataset("weighted_post", data=self._weighted_post)
+            hf.create_dataset("weighted_lnlike", data=self._weighted_lnlike)
+            hf.create_dataset("lnweight", data=self.lnweight)
+
+
         self.system.save(hf)
 
         hf.close()  # Closes file object, which writes file to disk
@@ -160,6 +205,16 @@ class Results(object):
             version_number = str(hf.attrs['version_number'])
         else:
             version_number = "<= 1.13"
+
+        try:
+            weighted_post = array_not_none(hf.get('weighted_post'))
+            weighted_lnlike = array_not_none(hf.get('weighted_lnlike'))
+            lnweight = array_not_none(hf.get("lnweight"))
+        except KeyError:
+            weighted_post = None
+            weighted_lnlike = None
+            lnweight = None
+            
         post = hf.get('post')
         if post is not None:
             post = np.array(post)
@@ -316,14 +371,14 @@ class Results(object):
                     'Unable to append file {} to Results object. version_number of object and file do not match'.format(filename))
 
             # Now append post and lnlike
-            self.add_samples(post, lnlike)#, self.labels)
+            self.add_samples(post, lnlike, weighted_post=weighted_post, weighted_lnlike=weighted_lnlike, lnweight=lnweight)#, self.labels)
         else:
 
             # Only proceed if object is completely empty
-            if self.sampler_name is None and self.post is None and self.lnlike is None and self.version_number is None:# and self.tau_ref_epoch is None :
+            if self.sampler_name is None and self.post is None and self.lnlike is None and self.version_number is None and self._weighted_lnlike is None and self._weighted_post is None and self.lnweight is None:# and self.tau_ref_epoch is None :
                 self.sampler_name = sampler_name
                 self.version_number = version_number
-                self.add_samples(post, lnlike)#, self.labels)
+                self.add_samples(post, lnlike, weighted_post=weighted_post, weighted_lnlike=weighted_lnlike, lnweight=lnweight)#, self.labels)
 
             else:
                 raise Exception(
@@ -390,11 +445,11 @@ class Results(object):
         self.results_str += '-------------------\n'
         print(self.results_str)
     
-    def plot_corner(self, param_list=None, **corner_kwargs):
+    def plot_corner(self, param_list=None, downsample=None, **corner_kwargs):
         """
         Wrapper for orbitize.plot.plot_corner
         """
-        return orbitize.plot.plot_corner(self, param_list, **corner_kwargs)
+        return orbitize.plot.plot_corner(self, param_list, downsample, **corner_kwargs)
 
     def plot_orbits(self, object_to_plot=1, start_mjd=51544.,
         num_orbits_to_plot=100, num_epochs_to_plot=100,
@@ -445,3 +500,8 @@ class Results(object):
                         cbar_param=cbar_param,
                         # fig=fig
                         )
+
+def array_not_none(raw):
+    if raw is not None:
+        return np.array(raw)
+    return raw

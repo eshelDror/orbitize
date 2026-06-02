@@ -19,6 +19,8 @@ import orbitize.lnlike
 import orbitize.priors
 import orbitize.results
 
+import sys
+
 
 class Sampler(abc.ABC):
     """
@@ -1696,49 +1698,80 @@ class NautilusSampler(Sampler):
         Prior transform function.
 
         Args:
-            u (array of floats): list of samples with values 0 < u < 1.
+            u (np.array of floats): MxR array of uniform
+                samples with values 0 < u < 1,
+                where M is the number of orbits,
+                and R is the number of parameters.
 
         Returns:
-            numpy array of floats: 1D u samples transformed to a chosen Prior
-                Class distribution.
+            numpy MxR array of floats: u samples transformed to
+                a chosen Prior Class distribution.
         """
-        utform = np.zeros(len(u))
-        for i in range(len(u)):
+        utform = np.zeros(u.shape)
+        for i in range(u.shape[1]):
             try:
-                utform[i] = self.system.sys_priors[i].transform_samples(u[i])
-            except AttributeError:  # prior is a fixed number
-                utform[i] = self.system.sys_priors[i]
+                utform[:, i] = self.system.sys_priors[i].transform_samples(u[:, i])
+            except AttributeError: # prior is a fixed number
+                utform[:, i] = self.system.sys_priors[i]
         return utform
+    
+    def nautilus_logl(self, u: np.ndarray):
+        return self._logl(u.T).T
     
     def run_sampler(
             self,
             n_live: int = 2000,
-            n_update: None|int = None,
+            n_update: int = None,
             verbose: bool = False,
+            num_threads: int = 1,
+            savefile: str = None,
             sampler_kwargs: dict = {},
             run_kwargs: dict = {}
         ):
-        
-        sampler = nautilus.Sampler(
-            prior=self.ptform,
-            likelihood=self._logl,
-            n_dim=len(self.system.sys_priors),
-            n_live=n_live,
-            n_update=n_update,
-            **sampler_kwargs
+        if sys.version_info < (3,9,0) and isinstance(num_threads, int) and num_threads > 1:
+            with Pool(processes=num_threads) as pool:
+                self.naut_sampler = nautilus.Sampler(
+                    prior=self.ptform,
+                    likelihood=self.nautilus_logl,
+                    n_dim=len(self.system.sys_priors),
+                    vectorized=True,
+                    n_live=n_live,
+                    n_update=n_update,
+                    pool=pool,
+                    filepath=savefile,
+                    **sampler_kwargs
+                    )
+
+                success = self.naut_sampler.run(
+                    verbose=verbose,
+                    **run_kwargs
+                )
+        else:
+            self.naut_sampler = nautilus.Sampler(
+                prior=self.ptform,
+                likelihood=self.nautilus_logl,
+                n_dim=len(self.system.sys_priors),
+                vectorized=True,
+                n_live=n_live,
+                n_update=n_update,
+                pool=num_threads,
+                filepath=savefile,
+                **sampler_kwargs
+                )
+
+            success = self.naut_sampler.run(
+                verbose=verbose,
+                **run_kwargs
             )
-
-        success = sampler.run(
-            verbose=verbose,
-            **run_kwargs
-        )
-
-        # TODO: use weighted posterior for higher accuracy
-        points, low_w, log_l = sampler.posterior(equal_weight = True)
+        points, _, log_l = self.naut_sampler.posterior(equal_weight = True)
+        weighted_points, log_w, weighted_log_l = self.naut_sampler.posterior()
 
         self.results.add_samples(
             points,
-            log_l
+            log_l,
+            weighted_post=weighted_points,
+            weighted_lnlike=weighted_log_l,
+            lnweight=log_w
         )
 
         return points
