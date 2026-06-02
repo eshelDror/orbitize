@@ -126,7 +126,7 @@ def plot_corner(results, param_list=None, **corner_kwargs):
             fixed_indices.append(i)
 
     samples = np.copy(
-        results.post[:, param_indices]
+        results.weighted_post[:, param_indices]
     )  # keep only chains for selected parameters
     samples[:, angle_indices] = np.degrees(
         samples[:, angle_indices]
@@ -161,7 +161,7 @@ def plot_corner(results, param_list=None, **corner_kwargs):
 
         corner_kwargs["labels"] = reduced_labels_list
 
-    figure = corner.corner(samples, **corner_kwargs)
+    figure = corner.corner(samples, **corner_kwargs, weights=results.weights)
     return figure
 
 
