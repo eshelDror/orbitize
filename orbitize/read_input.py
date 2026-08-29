@@ -20,11 +20,14 @@ def read_file(filename):
 
     Example of an orbitize-readable .csv input file::
 
-        epoch,object,raoff,raoff_err,decoff,decoff_err,radec_corr,sep,sep_err,pa,pa_err,rv,rv_err
-        1234,1,0.010,0.005,0.50,0.05,0.025,,,,,,
-        1235,1,,,,,,1.0,0.005,89.0,0.1,,
-        1236,1,,,,,,1.0,0.005,89.3,0.3,,
-        1237,0,,,,,,,,,,10,0.1
+        epoch,object,raoff,raoff_err,decoff,decoff_err,radec_corr,sep,sep_err,pa,pa_err,seppa_corr,rv,rv_err,brightness,brightness_err,instrument
+        1234,1,0.010,0.005,0.50,0.05,0.25,,,,,,,,,,
+        1235,1,,,,,,1.0,0.005,89.0,0.1,,,,0.9,0.1,
+        1236,1,,,,,,1.0,0.005,89.3,0.3,-0.5,,,0.6,0.2,
+        1237,0,,,,,,,,,,,10.0,0.1,,,A
+        1237,0,,,,,,,,,,,13.0,0.2,,,B
+        1238,0,,,,,,,,,,,10.2,0.2,,,A
+        1238,0,,,,,,,,,,,13.1,0.2,,,B
 
     Each row must have ``epoch`` (in MJD=JD-2400000.5) and ``object``.
     Objects are numbered with integers, where the primary/central object is ``0``.
@@ -36,7 +39,11 @@ def read_file(filename):
 
         - RA and DEC offsets [mas], or
         - sep [mas] and PA [degrees East of NCP], or
-        - RV measurement [km/s]
+        - RV measurement [km/s], or
+        - brightness
+
+    Each line may optionally have an ``instrument`` name. This is particularly important
+    if there are multiple RV instruments whose RV offsets need to be fitted separately.
 
     .. Note:: Columns with no data can be omitted (e.g. if only separation and PA
         are given, the raoff, deoff, and rv columns can be excluded).
@@ -75,13 +82,18 @@ def read_file(filename):
         astropy.Table: Table containing orbitize-readable input for given
         object. For the example input above::
 
-            epoch  object  quant1 quant1_err  quant2 quant2_err quant12_corr quant_type
-           float64  int   float64  float64   float64  float64     float64       str5
-           ------- ------ ------- ---------- ------- ---------- ------------ ----------
-           1234.0      1    0.01      0.005     0.5       0.05      0.025        radec
-           1235.0      1     1.0      0.005    89.0        0.1        nan        seppa
-           1236.0      1     1.0      0.005    89.3        0.3        nan        seppa
-           1237.0      0    10.0        0.1     nan        nan        nan           rv
+             epoch  object  quant1 quant1_err  quant2 quant2_err quant12_corr quant_type instrument
+            float64 int64  float64  float64   float64  float64     float64     bytes10     str20   
+            ------- ------ ------- ---------- ------- ---------- ------------ ---------- ----------
+             1234.0      1    0.01      0.005     0.5       0.05         0.25      radec      defrd
+             1235.0      1     1.0      0.005    89.0        0.1          nan      seppa      defsp
+             1235.0      1     0.9        0.1     nan        nan          nan brightness      defbr
+             1236.0      1     1.0      0.005    89.3        0.3         -0.5      seppa      defsp
+             1236.0      1     0.6        0.2     nan        nan          nan brightness      defbr
+             1237.0      0    10.0        0.1     nan        nan          nan         rv          A
+             1237.0      0    13.0        0.2     nan        nan          nan         rv          B
+             1238.0      0    10.2        0.2     nan        nan          nan         rv          A
+             1238.0      0    13.1        0.2     nan        nan          nan         rv          B
 
         where ``quant_type`` is one of "radec", "seppa", or "rv".
 
