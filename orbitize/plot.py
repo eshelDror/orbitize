@@ -768,17 +768,13 @@ class Plotter(object):
                 transf = transforms.Affine2D().rotate_deg(45).scale(scale_x, scale_y).translate(x0, y0)
                 ax.errorbar(0, 0, xerr=eigen_x, yerr=eigen_y, transform=(transf + ax.transData), **kwargs)
 
-    def _plot_full_orbits(self, ax, plot_astrometry, full_plot, fontsize, cmap, plot_astrometry_insts, use_cmap, n_std, object_i, object_index, astr_color, astr_symbols, model_color, err_color):
+    def _plot_full_orbits(self, ax, plot_astrometry, cmap, plot_astrometry_insts, use_cmap, n_std, object_i, object_index, astr_color, astr_symbols, model_color, err_color):
         """
         Plot RAoff/Decoff orbits and astrometry
 
         Args:
             ax (matploblib.axes.Axes): Axes on which to plot
             plot_astrometry (bool): plot astrometry data
-            full_plot (bool): aspect ratio is always equal, but if
-                full_plot is True, then the axes will fill the available space,
-                otherwise, white space padding is used
-            fontsize (float): fontsize for labels
             cmap (``matplotlib.cm.ColorMap``): color map to use on orbits with ``self.norm, self.norm_yr, self.cbar_param_arr``
             plot_astrometry_insts (bool): plot each astrometry instrument separately
             use_cmap (bool): map a color map to orbits according to `self.cbar_param`,
@@ -832,19 +828,6 @@ class Plotter(object):
                 pearson=self.radec_corrs[object_i], n_std=n_std,
                 ecolor=err_color, zorder=5
             )
-
-        # modify the axes
-        if full_plot:
-            adjustable_param = "datalim"
-        else:
-            adjustable_param = "box"
-
-        ax.set_aspect("equal", adjustable=adjustable_param)
-        ax.set_xlabel("$\\Delta$RA (mas)", fontsize=fontsize)
-        ax.set_ylabel("$\\Delta$Dec (mas)", fontsize=fontsize)
-        ax.locator_params(axis="x", nbins=6)
-        ax.locator_params(axis="y", nbins=6)
-        ax.invert_xaxis()  # To go to a left-handed coordinate system
 
     def _add_colorbar(self, ax, fig, cmaps, num_cbars):
         """
@@ -1227,7 +1210,7 @@ class Plotter(object):
             if (rv_err_grouping == [("observation", "offset", "jitter")] or (not plot_errorbars)) and len(self.rv_inst_inds.keys()) == 1 and "defrv" in self.rv_inst_inds.keys():
                 pass
             else:
-                plt.legend(fontsize=20, loc=1)
+                plt.legend(fontsize=20)
 
         if rv_time_series2 and len(self.rv_data2) > 0:
             med_ga2 = [np.median(self.results.post[:,i]) for i in self.gam_idx2]
@@ -1414,6 +1397,18 @@ class Plotter(object):
                 ax = plt.subplot2grid(shape, (0, 0), rowspan=2+plot_brightness, colspan=8 - show_colorbar)
             else:
                 ax = plt.subplot2grid(shape, (0, 0), rowspan=4, colspan=16 - show_colorbar*2 - num_cbars//2)
+            # modify the axes
+            if full_plot:
+                adjustable_param = "datalim"
+            else:
+                adjustable_param = "box"
+
+            ax.set_aspect("equal", adjustable=adjustable_param)
+            ax.set_xlabel("$\\Delta$RA (mas)", fontsize=fontsize)
+            ax.set_ylabel("$\\Delta$Dec (mas)", fontsize=fontsize)
+            ax.locator_params(axis="x", nbins=6)
+            ax.locator_params(axis="y", nbins=6)
+            ax.invert_xaxis()  # To go to a left-handed coordinate system
 
             # sep/PA/bright panels
             sep_axes = []
@@ -1479,7 +1474,7 @@ class Plotter(object):
                 astr_color = next(astr_colors)
                 err_color = next(err_colors)
                 model_color = next(model_colors)
-                self._plot_full_orbits(ax, plot_astrometry, full_plot, fontsize, next(cmaps_iter), plot_astrometry_insts, use_cmap, n_std, object_i, object_index, astr_color, astr_symbols, model_color, err_color)
+                self._plot_full_orbits(ax, plot_astrometry, next(cmaps_iter), plot_astrometry_insts, use_cmap, n_std, object_i, object_index, astr_color, astr_symbols, model_color, err_color)
                 self._plot_sep_pa_model(sep_axes[object_i], pa_axes[object_i], mod180, sep_pa_color, object_i, object_index)
                 self._plot_sep_pa_data(sep_axes[object_i], pa_axes[object_i], plot_astrometry_insts, plot_errorbars, object_i, object_index)
 
