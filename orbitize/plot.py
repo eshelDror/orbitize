@@ -1210,7 +1210,10 @@ class Plotter(object):
             if (rv_err_grouping == [("observation", "offset", "jitter")] or (not plot_errorbars)) and len(self.rv_inst_inds.keys()) == 1 and "defrv" in self.rv_inst_inds.keys():
                 pass
             else:
-                plt.legend(fontsize=20)
+                nitems = len(self.rv_inst_inds)
+                if plot_errorbars:
+                    nitems += len(rv_err_grouping)
+                plt.legend(fontsize=20, ncol=((nitems-1)//5+1))
 
         if rv_time_series2 and len(self.rv_data2) > 0:
             med_ga2 = [np.median(self.results.post[:,i]) for i in self.gam_idx2]
@@ -1274,7 +1277,10 @@ class Plotter(object):
             if rv_err_grouping == [("observation", "offset", "jitter")] and len(self.rv_inst_inds2.keys()) == 1 and "defrv" in self.rv_inst_inds2.keys():
                 pass
             else:
-                plt.legend(fontsize=20, loc=1)
+                nitems = len(self.rv_inst_inds2)
+                if plot_errorbars:
+                    nitems += len(rv_err_grouping)
+                plt.legend(fontsize=20, ncol=((nitems-1)//5+1))
 
     def plot_orbits(
         self,
