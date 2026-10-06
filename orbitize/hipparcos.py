@@ -163,7 +163,11 @@ class HipparcosLogProb(object):
             should be False, but it's helpful for testing. Check out
             `orbitize.hipparcos.nielsen_iad_refitting_test()` for an example
             using this renormalization.
-
+        hip_data (dict): best-fit astrometric solution from Sep 08 van Leeuwen catalog 
+            (https://cdsarc.unistra.fr/ftp/I/311/ReadMe) containing values for the keys
+            "RArad", "e_RArad", "DErad", "e_DErad", "Plx", "e_Plx", "pmRA", "e_pmRA", "pmDE",
+            "e_pmDE", "F2", "Sn", and "var" in flolat [mas], float [mas/yr],
+            or int as appropriate (default: None)
     Written: Sarah Blunt & Rob de Rosa, 2021
     """
 
@@ -198,7 +202,8 @@ class HipparcosLogProb(object):
         # dvd files don't contain the Hipparcos astrometric solution, so
         # we need to look it up
         if dvd_file:
-            assert hip_data is not None, "Best-fit astrometric solutions required when using DVD file"
+            if not isinstance(hip_data, dict):
+                raise TypeError("Best-fit astrometric solutions required when using DVD file")
             self.plx0 = hip_data["Plx"]  # [mas]
             self.pm_ra0 = hip_data["pmRA"]  # [mas/yr]
             self.pm_dec0 = hip_data["pmDE"]  # [mas/yr]
@@ -216,45 +221,6 @@ class HipparcosLogProb(object):
                 self.var = hip_data["var"]  # [mas]
             else:
                 self.var = 0
-            # # load best-fit astrometric solution from Sep 08 van Leeuwen catalog
-            # # (https://cdsarc.unistra.fr/ftp/I/311/ReadMe)
-            # Vizier.ROW_LIMIT = -1
-            # hip_cat = Vizier(
-            #     catalog="I/311/hip2",
-            #     columns=[
-            #         "RArad",
-            #         "e_RArad",
-            #         "DErad",
-            #         "e_DErad",
-            #         "Plx",
-            #         "e_Plx",
-            #         "pmRA",
-            #         "e_pmRA",
-            #         "pmDE",
-            #         "e_pmDE",
-            #         "F2",
-            #         "Sn",
-            #         "var",
-            #     ],
-            # ).query_constraints(HIP=self.hip_num)[0]
-
-            # self.plx0 = hip_cat["Plx"][0]  # [mas]
-            # self.pm_ra0 = hip_cat["pmRA"][0]  # [mas/yr]
-            # self.pm_dec0 = hip_cat["pmDE"][0]  # [mas/yr]
-            # self.alpha0 = hip_cat["RArad"][0]  # [deg]
-            # self.delta0 = hip_cat["DErad"][0]  # [deg]
-            # self.plx0_err = hip_cat["e_Plx"][0]  # [mas]
-            # self.pm_ra0_err = hip_cat["e_pmRA"][0]  # [mas/yr]
-            # self.pm_dec0_err = hip_cat["e_pmDE"][0]  # [mas/yr]
-            # self.alpha0_err = hip_cat["e_RArad"][0]  # [mas]
-            # self.delta0_err = hip_cat["e_DErad"][0]  # [mas]
-
-            # self.solution_type = hip_cat["Sn"][0]
-            # f2 = hip_cat["F2"][0]
-            # if self.solution_type == 1:
-            #     self.var = hip_cat["var"][0]  # [mas]
-            # else:
-            #     self.var = 0
 
         else:
             # read the Hipparcos best-fit solution from the IAD file
@@ -480,6 +446,11 @@ def nielsen_iad_refitting_test(
             plot
         burn_steps (int): number of MCMC burn-in steps to run.
         mcmc_steps (int): number of MCMC production steps to run.
+        hip_data (dict): best-fit astrometric solution from Sep 08 van Leeuwen catalog 
+            (https://cdsarc.unistra.fr/ftp/I/311/ReadMe) containing values for the keys
+            "RArad", "e_RArad", "DErad", "e_DErad", "Plx", "e_Plx", "pmRA", "e_pmRA", "pmDE",
+            "e_pmDE", "F2", "Sn", and "var" in flolat [mas], float [mas/yr],
+            or int as appropriate (default: None)
 
     Returns:
         tuple:

@@ -330,8 +330,9 @@ class Results(object):
                 gaia_num = int(hf.attrs['gaia_num'])
                 dr = str(hf.attrs['dr'])
                 gaia_data_raw = hf.get("gaia_data")
+                if gaia_data_raw is None:
+                    raise KeyError
                 gaia_data = {key : gaia_data_raw[key][()] for key in gaia_data_raw.keys()}
-                # TODO: raise error for no Gaia data
                 gaia = orbitize.gaia.GaiaLogProb(gaia_num, hipparcos_IAD, gaia_data, dr)
             except KeyError:
                 gaia = None
@@ -345,8 +346,9 @@ class Results(object):
                 tmptbl.write(tmpfile, format="ascii", overwrite=True)
 
                 hgca_entry_raw = hf.get("HGCA_entry")
+                if hgca_entry_raw is None:
+                    raise KeyError("HGCA Entry not found in {} for initializing HGCALogProb".format(filename))
                 hgca_entry = {key : hgca_entry_raw[key][()] for key in hgca_entry_raw.keys()}
-                # TODO: raise error for None
 
                 gaia = orbitize.gaia.HGCALogProb(int(hip_num), hipparcos_IAD, tmpfile, hgca_entry=hgca_entry)
                 hipparcos_IAD = None # HGCA handles hipparocs, so don't want to pass Hipparcos also into the system

@@ -34,9 +34,8 @@ class GaiaLogProb(object):
         hiplogprob (orbitize.hipparcos.HipLogProb): object containing
             all info relevant to Hipparcos IAD fitting
         dr (str): either 'dr2' or 'edr3'
-        gaia_data (dict): see `query` keyword above. If `query` set to False,
-            then user must supply a dictionary of Gaia astometry in the following
-            form:
+        gaia_data (dict): a dictionary of Gaia astometry in the
+            following form:
                 gaia_data = {
                     'ra': 139.4 # RA in degrees
                     'dec': 139.4 # Dec in degrees
@@ -60,19 +59,6 @@ class GaiaLogProb(object):
         else:
             raise ValueError("`dr` must be either `dr2` or `edr3`")
         self.hipparcos_epoch = 1991.25
-
-        # if query:
-        #     query = """SELECT
-        #     TOP 1
-        #     ra, dec, ra_error, dec_error
-        #     FROM gaia{}.gaia_source
-        #     WHERE source_id = {}
-        #     """.format(
-        #         self.dr, self.gaia_num
-        #     )
-
-        #     job = Gaia.launch_job_async(query)
-        #     gaia_data = job.get_results()
 
         self.ra = gaia_data["ra"]
         self.ra_err = gaia_data["ra_error"]
@@ -194,8 +180,12 @@ class HGCALogProb(object):
         hiplogprob (orbitize.hipparcos.HipLogProb): object containing
             all info relevant to Hipparcos IAD fitting
         gost_filepath (str): path to CSV file outputted by GOST
-        hgca_filepath (str): path to HGCA catalog FITS file.
-            If None, will download and store in orbitize.DATADIR
+        hgca_filepath (str): path to HGCA catalog FITS file
+            (https://cdsarc.cds.unistra.fr/ftp/J/ApJS/254/42/HGCA_vEDR3.fits).
+            If None, will check for the file in `orbitize.DATADIR` (default: None)
+        hgca_entry (dict): Dictionary of the HGCA catalog entry for this target.
+            Can be used to initialize without using the full HGCA catalog FITS file.
+            (default: None)
 
     Written: Jason Wang, 2022
     """
@@ -206,20 +196,6 @@ class HGCALogProb(object):
             if hgca_filepath is None:
                 # check orbitize.DATAIDR
                 hgca_filepath = os.path.join(DATADIR, "HGCA_vEDR3.fits")
-            # if not os.path.exists(hgca_filepath):
-            #     hgca_url = (
-            #         "https://cdsarc.cds.unistra.fr/ftp/J/ApJS/254/42/HGCA_vEDR3.fits"
-            #     )
-            #     print(
-            #         "No HGCA catalog found. Downloading HGCA vEDR3 from {0} and storing into {1}.".format(
-            #             hgca_url, hgca_filepath
-            #         )
-            #     )
-            #     hgca_file = requests.get(hgca_url, verify=False)
-            #     with open(hgca_filepath, "wb") as f:
-            #         f.write(hgca_file.content)
-            # else:
-            #     print("Using HGCA catalog stored in {0}".format(hgca_filepath))
             # grab the entry from the HGCA
             assert os.path.exists(hgca_filepath), "HGCA Catalog Not Found"
             with fits.open(
@@ -237,6 +213,8 @@ class HGCALogProb(object):
             cols = entry_raw.columns.names
             entry = dict(zip(cols, entry_raw[0]))
         else:
+            if not isinstance(hgca_entry, dict):
+                raise TypeError("hgca_entry must be a dict {}".format(hgca_entry))
             entry = hgca_entry
         self.hgca_entry = entry
         self.hip_id = hip_id
