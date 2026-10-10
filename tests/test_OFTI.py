@@ -44,7 +44,7 @@ def test_scale_and_rotate():
     assert pa_sar == pytest.approx(sar_epoch["quant2"], abs=sar_epoch["quant2_err"])
 
     # test scale-and-rotate for orbits run all the way through OFTI
-    s.run_sampler(100)
+    s.run_sampler(100, seed=np.random.random_integers(1, 1e9))
 
     # test orbit plot generation
     s.results.plot_orbits(start_mjd=s.epochs[0])
@@ -122,11 +122,11 @@ def test_run_sampler():
     myDriver.system.sys_priors[1] = priors.LinearPrior(-2.18, 2.01)
 
     # test num_samples=1
-    s.run_sampler(0, num_samples=1)
+    s.run_sampler(0, num_samples=1, seed=np.random.random_integers(1, 1e9))
 
     # test to make sure outputs are reasonable
     start = time.time()
-    orbits = s.run_sampler(100, num_cores=4)
+    orbits = s.run_sampler(100, num_cores=4, seed=np.random.random_integers(1, 1e9))
     end = time.time()
 
     print()
@@ -170,7 +170,7 @@ def test_run_sampler():
         input_file_1epoch, "OFTI", 1, 1.22, 56.95, mass_err=0.08, plx_err=0.26
     )
     s = myDriver.sampler
-    s.run_sampler(1)
+    s.run_sampler(1, seed=np.random.random_integers(1, 1e9))
     print()
 
 
@@ -233,7 +233,7 @@ def profile_system():
     myDriver.system.sys_priors[1] = priors.LinearPrior(-2.18, 2.01)
 
     # test num_samples=1
-    s.run_sampler(0, num_samples=1)
+    s.run_sampler(0, num_samples=1, seed=np.random.random_integers(1, 1e9))
 
     # test to make sure outputs are reasonable
     pycuda.driver.start_profiler()
@@ -251,7 +251,7 @@ def profile_system():
     start = time.time()
     orbitize.cext = True
     orbitize.cuda_ext = False
-    orbits = s.run_sampler(30000)
+    orbits = s.run_sampler(30000, seed=np.random.random_integers(1, 1e9))
     end = time.time()
     pycuda.driver.stop_profiler()
 
@@ -288,7 +288,7 @@ def test_OFTI_multiplanet():
     # change eccentricity prior for c
     myDriver.system.sys_priors[7] = priors.UniformPrior(0.0, 0.1)
 
-    orbits = s.run_sampler(500)
+    orbits = s.run_sampler(500, seed=np.random.random_integers(1, 1e9))
 
     idx = s.system.param_idx
     sma1 = np.median(orbits[:, idx["sma1"]])
@@ -361,10 +361,10 @@ def test_OFTI_covariances():
     my_sys.sys_priors[1] = priors.LinearPrior(-2.18, 2.01)
 
     # test num_samples=1
-    s.run_sampler(0, num_samples=1)
+    s.run_sampler(0, num_samples=1, seed=np.random.random_integers(1, 1e9))
 
     # test to make sure outputs are reasonable
-    orbits = s.run_sampler(1000, num_cores=4)
+    orbits = s.run_sampler(1000, num_cores=4, seed=np.random.random_integers(1, 1e9))
 
     # test that lnlikes being saved are correct
     returned_lnlike_test = s.results.lnlike[0]
@@ -399,7 +399,7 @@ def test_OFTI_pan_priors():
     myDriver.system.sys_priors[4] = priors.UniformPrior(new_min, new_max)
 
     # run sampler
-    orbits = s.run_sampler(100)
+    orbits = s.run_sampler(100, seed=np.random.random_integers(1, 1e9))
 
     # check that bounds were applied correctly
     assert np.max(orbits[:, 4]) < new_max
@@ -411,7 +411,7 @@ def test_OFTI_pan_priors():
     myDriver.system.sys_priors[4] = priors.GaussianPrior(mu, sigma=sigma)
 
     # run sampler again
-    orbits = s.run_sampler(250)
+    orbits = s.run_sampler(250, seed=np.random.random_integers(1, 1e8))
 
     # check that bounds were applied correctly
     assert mu == pytest.approx(np.mean(orbits[:, 4]), abs=0.01)
