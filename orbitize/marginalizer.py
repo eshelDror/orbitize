@@ -3,7 +3,6 @@ import numpy as np
 from astropy import units as u
 import orbitize.basis as basis
 import orbitize.kepler as kepler
-import scipy.stats
 
 """
 This module defines marginalizations to draw
@@ -199,10 +198,7 @@ class OFTeI_sma_pan(Marginalizer):
             cov_matrix
         )  # NOTE: the 2pi factor in the APW paper is constant; doesn't affect overall lnlike
 
-        dist = scipy.stats.multivariate_normal([sma_map, pan_map], cov_matrix)
-        chi2_sample_norm = dist.logpdf([sma_sample, pan_sample])
-
-        return sma_map, pan_map, logabsdet_covmatrix, sma_sample, pan_sample, chi2_sample_norm
+        return sma_map, pan_map, logabsdet_covmatrix, sma_sample, pan_sample
 
     @staticmethod
     def lnlike(y, X, beta_hat, W, W_inv=None, add_error_norm=False):
@@ -228,7 +224,7 @@ class OFTeI_sma_pan(Marginalizer):
 
         # NOTE: this term can be ignored unless we're fitting for jitter
         if add_error_norm:
-            error_norm_term = -0.5 * np.linalg.det(W)
+            error_norm_term = -0.5 * np.log(np.det(W))
         else:
             error_norm_term = 0
 
@@ -256,11 +252,11 @@ class OFTeI_sma_pan(Marginalizer):
         W_inv = self.W_inv
 
         try:
-            smas_map, pans_map_degrees, logdet_covmatrix, sma_sample, pan_sample_deg, chi2samples = (
+            smas_map, pans_map_degrees, logdet_covmatrix, sma_sample, pan_sample_deg = (
                 self.calc_cov_matrix_det(self.seps, self.pas, f_samples, g_samples, W, W_inv)
             )
         except np.linalg.LinAlgError:
-            return -np.inf, -np.inf, None, None
+            return -np.inf, None, None
 
         # set up design matrix
         X = np.zeros((2 * self.n_obs, 2))
@@ -271,15 +267,13 @@ class OFTeI_sma_pan(Marginalizer):
         beta_hat = np.hstack((smas_map, pans_map_degrees))
 
         # compute marginalized likelihood (e.g. Price-Whelan 2017 eq 11)
-        chi2lnlike = self.lnlike(y, X, beta_hat, W, W_inv, add_error_norm=True)
+        chi2lnlike = self.lnlike(y, X, beta_hat, W, W_inv)
 
         logprob = (
             chi2lnlike + 0.5 * logdet_covmatrix
         )  # NOTE: the sign here differs from APW+ 2017 (which I think is correct; I think they have a bug)
 
         pan_sample = np.deg2rad(pan_sample_deg) % (2 * np.pi)
-
-        loglike = logprob + chi2samples
 
         # apply sma/pan priors
         if self.sma_prior is not None:
@@ -297,6 +291,7 @@ class OFTeI_sma_pan(Marginalizer):
                 np.array([mtot_sample])
             ))  # apply the user-defined prior
 
+        loglike = logprob # TODO
         samples = np.array([sma_sample, pan_sample])
 
         if not np.isfinite(logprob):
