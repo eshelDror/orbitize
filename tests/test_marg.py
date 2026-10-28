@@ -152,14 +152,27 @@ def test_OFTeI():
     mySampler = sampler.MCMC(
         mySystem,
         num_temps=5,
-        num_walkers=100,
+        num_walkers=10,
         num_threads=mp.cpu_count(),
         marginalizers=[marg]
     )
-    mySampler.run_sampler(4000, 10, output_filename=output_file, periodic_save_freq=2)
+    mySampler.run_sampler(5000, 20, output_filename=output_file, periodic_save_freq=2)
     assert not mySampler.force_valid_marg
     myResults = mySampler.results
-    print(myResults.post.shape)
+
+    class TestSampler(sampler.Sampler):
+        def run_sampler():
+            ...
+
+    noMargSampler = TestSampler(mySystem, marginalizers=[])
+    true_l = []
+    for param in myResults.post:
+        l = noMargSampler._logl(param)[0]
+        true_l.append(l)
+    diff = np.abs(true_l - myResults.lnlike)
+    print((true_l - myResults.lnlike)[np.where(diff > .2)])
+    assert (diff < .2).all(), np.where(diff < .2)
+    # assert (true_l == myResults.lnlike).all()
 
 def test_OFTeI_RV():
     input_file = os.path.join(orbitize.DATADIR, 'HD4747.csv')

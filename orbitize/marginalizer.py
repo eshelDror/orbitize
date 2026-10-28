@@ -198,7 +198,13 @@ class OFTeI_sma_pan(Marginalizer):
             cov_matrix
         )  # NOTE: the 2pi factor in the APW paper is constant; doesn't affect overall lnlike
 
-        return sma_map, pan_map, logabsdet_covmatrix, sma_sample, pan_sample
+        res = np.array([sma_sample - sma_map, basis.angle_diff(pan_sample, pan_map)])
+
+        log_conditional_prob = -0.5 * res.T @ np.linalg.inv(cov_matrix) @ res - 0.5 * logabsdet_covmatrix - np.log(2*np.pi)
+
+        log_conditional_prob -= (n_obs) * np.log(2*np.pi)
+
+        return sma_map, pan_map, logabsdet_covmatrix, sma_sample, pan_sample, log_conditional_prob
 
     @staticmethod
     def lnlike(y, X, beta_hat, W, W_inv=None, add_error_norm=False):
@@ -224,7 +230,7 @@ class OFTeI_sma_pan(Marginalizer):
 
         # NOTE: this term can be ignored unless we're fitting for jitter
         if add_error_norm:
-            error_norm_term = -0.5 * np.log(np.det(W))
+            error_norm_term = -0.5 * np.linalg.slogdet(W)[1] + np.log(2*np.pi)
         else:
             error_norm_term = 0
 
@@ -252,7 +258,7 @@ class OFTeI_sma_pan(Marginalizer):
         W_inv = self.W_inv
 
         try:
-            smas_map, pans_map_degrees, logdet_covmatrix, sma_sample, pan_sample_deg = (
+            smas_map, pans_map_degrees, logdet_covmatrix, sma_sample, pan_sample_deg, log_conditional_prob = (
                 self.calc_cov_matrix_det(self.seps, self.pas, f_samples, g_samples, W, W_inv)
             )
         except np.linalg.LinAlgError:
@@ -267,13 +273,14 @@ class OFTeI_sma_pan(Marginalizer):
         beta_hat = np.hstack((smas_map, pans_map_degrees))
 
         # compute marginalized likelihood (e.g. Price-Whelan 2017 eq 11)
-        chi2lnlike = self.lnlike(y, X, beta_hat, W, W_inv)
+        chi2lnlike = self.lnlike(y, X, beta_hat, W, W_inv, True)
 
         logprob = (
             chi2lnlike + 0.5 * logdet_covmatrix
         )  # NOTE: the sign here differs from APW+ 2017 (which I think is correct; I think they have a bug)
 
         pan_sample = np.deg2rad(pan_sample_deg) % (2 * np.pi)
+        loglike = logprob + log_conditional_prob
 
         # apply sma/pan priors
         if self.sma_prior is not None:
@@ -291,7 +298,6 @@ class OFTeI_sma_pan(Marginalizer):
                 np.array([mtot_sample])
             ))  # apply the user-defined prior
 
-        loglike = logprob # TODO
         samples = np.array([sma_sample, pan_sample])
 
         if not np.isfinite(logprob):
